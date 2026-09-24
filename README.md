@@ -52,3 +52,30 @@ src/
 
 Faça **um commit por avanço** (Conventional Commits, ex.: `feat(entregas): valida origem ≠ destino`).
 Bom trabalho! 🚀
+
+## Exemplos de uso (curl)
+
+```bash
+# criar entrega
+curl -X POST http://localhost:3000/api/entregas \
+  -H "Content-Type: application/json" \
+  -d '{"descricao":"Pacote 1","origem":"Maceió","destino":"Arapiraca"}'
+
+# listar entregas
+curl http://localhost:3000/api/entregas
+
+# listar entregas filtrando por status
+curl "http://localhost:3000/api/entregas?status=CRIADA"
+
+# buscar uma entrega por id
+curl http://localhost:3000/api/entregas/1
+
+# avançar o status (CRIADA -> EM_TRANSITO -> ENTREGUE)
+curl -X PATCH http://localhost:3000/api/entregas/1/avancar
+
+# cancelar uma entrega
+curl -X PATCH http://localhost:3000/api/entregas/1/cancelar
+
+# ver o histórico de uma entrega
+curl http://localhost:3000/api/entregas/1/historico
+```
