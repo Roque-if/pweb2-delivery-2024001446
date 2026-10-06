@@ -78,4 +78,65 @@ curl -X PATCH http://localhost:3000/api/entregas/1/cancelar
 
 # ver o histórico de uma entrega
 curl http://localhost:3000/api/entregas/1/historico
+
+# atribuir um motorista a uma entrega (só entrega CRIADA + motorista ATIVO)
+curl -X PATCH http://localhost:3000/api/entregas/1/atribuir \
+  -H "Content-Type: application/json" \
+  -d '{"motoristaId":1}'
+
+# cadastrar motorista
+curl -X POST http://localhost:3000/api/motoristas \
+  -H "Content-Type: application/json" \
+  -d '{"nome":"João","cpf":"123.456.789-00","placaVeiculo":"ABC1D23"}'
+
+# listar motoristas / buscar um motorista
+curl http://localhost:3000/api/motoristas
+curl http://localhost:3000/api/motoristas/1
+
+# entregas de um motorista (com filtro opcional por status)
+curl http://localhost:3000/api/motoristas/1/entregas
+curl "http://localhost:3000/api/motoristas/1/entregas?status=CRIADA"
 ```
+
+## Rotas da API
+
+| Método | Rota | Sucesso | Erros |
+|---|---|---|---|
+| GET | `/api/health` | 200 | - |
+| POST | `/api/entregas` | 201 | 400 · 409 |
+| GET | `/api/entregas` (`?status=`) | 200 | - |
+| GET | `/api/entregas/:id` | 200 | 404 |
+| PATCH | `/api/entregas/:id/avancar` | 200 | 404 · 422 |
+| PATCH | `/api/entregas/:id/cancelar` | 200 | 404 · 422 |
+| PATCH | `/api/entregas/:id/atribuir` | 200 | 400 · 404 · 422 |
+| GET | `/api/entregas/:id/historico` | 200 | 404 |
+| POST | `/api/motoristas` | 201 | 400 · 409 |
+| GET | `/api/motoristas` | 200 | - |
+| GET | `/api/motoristas/:id` | 200 | 404 |
+| GET | `/api/motoristas/:id/entregas` (`?status=`) | 200 | 404 |
+
+## Composição das dependências
+
+Todo `new` acontece num único ponto, `criarRotas()` em `src/routes/index.js`. Os services
+recebem os repositories pelo construtor e só conhecem os contratos documentados em
+`src/repositories/contratos.js` (`IEntregasRepository` e `IMotoristasRepository`).
+
+```
+                      Database
+                     /        \
+        EntregasRepository   MotoristasRepository
+             |        \         /        |
+             |     EntregasService        |
+             |           |                |
+             |   EntregasController       |
+             |                            |
+             +----- MotoristasService ----+
+                           |
+                  MotoristasController
+                           |
+                    criarRotas() -> /api
+```
+
+`EntregasService` recebe `(entregasRepo, motoristasRepo)` e `MotoristasService` recebe
+`(motoristasRepo, entregasRepo)`. A regra de motorista INATIVO não pode ser atribuído fica no
+`EntregasService`.
