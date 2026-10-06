@@ -48,6 +48,16 @@ export class EntregasController {
     }
   };
 
+  atribuir = (req, res, next) => {
+    try {
+      const { motoristaId } = req.body || {};
+      const entrega = this.service.atribuir(Number(req.params.id), motoristaId);
+      res.status(200).json(entrega);
+    } catch (erro) {
+      next(erro);
+    }
+  };
+
   buscarHistorico = (req, res, next) => {
     try {
       const historico = this.service.buscarHistorico(Number(req.params.id));
