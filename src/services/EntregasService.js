@@ -5,9 +5,20 @@ const PROXIMO_STATUS = {
   EM_TRANSITO: 'ENTREGUE',
 };
 
+const STATUS_FINAIS = ['ENTREGUE', 'CANCELADA'];
+
+function novoEvento(descricao) {
+  return { data: new Date().toISOString(), descricao };
+}
+
 export class EntregasService {
-  constructor(repository) {
-    this.repository = repository;
+  /**
+   * @param {import('../repositories/contratos.js').IEntregasRepository} entregasRepo
+   * @param {import('../repositories/contratos.js').IMotoristasRepository} motoristasRepo
+   */
+  constructor(entregasRepo, motoristasRepo) {
+    this.entregasRepo = entregasRepo;
+    this.motoristasRepo = motoristasRepo;
   }
 
   criar({ descricao, origem, destino }) {
@@ -17,27 +28,36 @@ export class EntregasService {
     if (origem === destino) {
       throw new EntradaInvalidaError('origem e destino não podem ser iguais');
     }
-    if (this.repository.buscarAtivaPorChave(descricao, origem, destino)) {
+
+    const duplicada = this.entregasRepo
+      .listarTodos()
+      .find(
+        (entrega) =>
+          entrega.descricao === descricao &&
+          entrega.origem === origem &&
+          entrega.destino === destino &&
+          !STATUS_FINAIS.includes(entrega.status),
+      );
+    if (duplicada) {
       throw new DuplicidadeError('já existe uma entrega ativa com essa descrição, origem e destino');
     }
 
-    return this.repository.criar({
+    return this.entregasRepo.criar({
       descricao,
       origem,
       destino,
       status: 'CRIADA',
       motoristaId: null,
-      historico: [{ data: new Date().toISOString(), descricao: 'Entrega criada' }],
+      historico: [novoEvento('Entrega criada')],
     });
   }
 
   listar(status) {
-    const entregas = this.repository.listarTodas();
-    return status ? entregas.filter((entrega) => entrega.status === status) : entregas;
+    return this.entregasRepo.listarTodos(status ? { status } : {});
   }
 
   buscarPorId(id) {
-    const entrega = this.repository.buscarPorId(id);
+    const entrega = this.entregasRepo.buscarPorId(id);
     if (!entrega) {
       throw new NaoEncontradoError('entrega não encontrada');
     }
@@ -51,20 +71,45 @@ export class EntregasService {
       throw new RegraDeNegocioError('não é possível avançar essa entrega a partir do status atual');
     }
 
-    entrega.status = proximoStatus;
-    entrega.historico.push({ data: new Date().toISOString(), descricao: `Status alterado para ${proximoStatus}` });
-    return entrega;
+    return this.entregasRepo.atualizar(id, {
+      status: proximoStatus,
+      historico: [...entrega.historico, novoEvento(`Status alterado para ${proximoStatus}`)],
+    });
   }
 
   cancelar(id) {
     const entrega = this.buscarPorId(id);
-    if (entrega.status === 'ENTREGUE' || entrega.status === 'CANCELADA') {
+    if (STATUS_FINAIS.includes(entrega.status)) {
       throw new RegraDeNegocioError('entrega já finalizada não pode ser cancelada');
     }
 
-    entrega.status = 'CANCELADA';
-    entrega.historico.push({ data: new Date().toISOString(), descricao: 'Entrega cancelada' });
-    return entrega;
+    return this.entregasRepo.atualizar(id, {
+      status: 'CANCELADA',
+      historico: [...entrega.historico, novoEvento('Entrega cancelada')],
+    });
+  }
+
+  atribuir(id, motoristaId) {
+    if (motoristaId === undefined || motoristaId === null) {
+      throw new EntradaInvalidaError('motoristaId é obrigatório');
+    }
+
+    const entrega = this.buscarPorId(id);
+    const motorista = this.motoristasRepo.buscarPorId(Number(motoristaId));
+    if (!motorista) {
+      throw new NaoEncontradoError('motorista não encontrado');
+    }
+    if (entrega.status !== 'CRIADA') {
+      throw new RegraDeNegocioError('só é possível atribuir motorista a uma entrega CRIADA');
+    }
+    if (motorista.status !== 'ATIVO') {
+      throw new RegraDeNegocioError('motorista INATIVO não pode ser atribuído');
+    }
+
+    return this.entregasRepo.atualizar(id, {
+      motoristaId: motorista.id,
+      historico: [...entrega.historico, novoEvento(`Motorista ${motorista.nome} atribuído`)],
+    });
   }
 
   buscarHistorico(id) {
