@@ -10,11 +10,11 @@ export class MotoristasService {
     this.entregasRepo = entregasRepo;
   }
 
-  criar({ nome, cpf, placaVeiculo }) {
+  async criar({ nome, cpf, placaVeiculo }) {
     if (!nome || !cpf) {
       throw new EntradaInvalidaError('nome e cpf são obrigatórios');
     }
-    if (this.motoristasRepo.buscarPorCpf(cpf)) {
+    if (await this.motoristasRepo.buscarPorCpf(cpf)) {
       throw new DuplicidadeError(`já existe um motorista cadastrado com o CPF ${cpf}`);
     }
 
@@ -30,16 +30,17 @@ export class MotoristasService {
     return this.motoristasRepo.listarTodos();
   }
 
-  buscarPorId(id) {
-    const motorista = this.motoristasRepo.buscarPorId(id);
+  async buscarPorId(id) {
+    const motorista = await this.motoristasRepo.buscarPorId(id);
     if (!motorista) {
       throw new NaoEncontradoError('motorista não encontrado');
     }
     return motorista;
   }
 
-  listarEntregas(id, status) {
-    this.buscarPorId(id);
+  async listarEntregas(id, status) {
+    // o buscarPorId só confirma que o motorista existe (lança 404 se não existir); o retorno não é usado
+    await this.buscarPorId(id);
     return this.entregasRepo.listarTodos(status ? { motoristaId: id, status } : { motoristaId: id });
   }
 }

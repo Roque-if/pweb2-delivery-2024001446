@@ -21,7 +21,7 @@ export class EntregasService {
     this.motoristasRepo = motoristasRepo;
   }
 
-  criar({ descricao, origem, destino }) {
+  async criar({ descricao, origem, destino }) {
     if (!descricao || !origem || !destino) {
       throw new EntradaInvalidaError('descricao, origem e destino são obrigatórios');
     }
@@ -29,15 +29,14 @@ export class EntregasService {
       throw new EntradaInvalidaError('origem e destino não podem ser iguais');
     }
 
-    const duplicada = this.entregasRepo
-      .listarTodos()
-      .find(
-        (entrega) =>
-          entrega.descricao === descricao &&
-          entrega.origem === origem &&
-          entrega.destino === destino &&
-          !STATUS_FINAIS.includes(entrega.status),
-      );
+    const entregas = await this.entregasRepo.listarTodos();
+    const duplicada = entregas.find(
+      (entrega) =>
+        entrega.descricao === descricao &&
+        entrega.origem === origem &&
+        entrega.destino === destino &&
+        !STATUS_FINAIS.includes(entrega.status),
+    );
     if (duplicada) {
       throw new DuplicidadeError('já existe uma entrega ativa com essa descrição, origem e destino');
     }
@@ -56,16 +55,16 @@ export class EntregasService {
     return this.entregasRepo.listarTodos(status ? { status } : {});
   }
 
-  buscarPorId(id) {
-    const entrega = this.entregasRepo.buscarPorId(id);
+  async buscarPorId(id) {
+    const entrega = await this.entregasRepo.buscarPorId(id);
     if (!entrega) {
       throw new NaoEncontradoError('entrega não encontrada');
     }
     return entrega;
   }
 
-  avancar(id) {
-    const entrega = this.buscarPorId(id);
+  async avancar(id) {
+    const entrega = await this.buscarPorId(id);
     const proximoStatus = PROXIMO_STATUS[entrega.status];
     if (!proximoStatus) {
       throw new RegraDeNegocioError('não é possível avançar essa entrega a partir do status atual');
@@ -77,8 +76,8 @@ export class EntregasService {
     });
   }
 
-  cancelar(id) {
-    const entrega = this.buscarPorId(id);
+  async cancelar(id) {
+    const entrega = await this.buscarPorId(id);
     if (STATUS_FINAIS.includes(entrega.status)) {
       throw new RegraDeNegocioError('entrega já finalizada não pode ser cancelada');
     }
@@ -89,13 +88,13 @@ export class EntregasService {
     });
   }
 
-  atribuir(id, motoristaId) {
+  async atribuir(id, motoristaId) {
     if (motoristaId === undefined || motoristaId === null) {
       throw new EntradaInvalidaError('motoristaId é obrigatório');
     }
 
-    const entrega = this.buscarPorId(id);
-    const motorista = this.motoristasRepo.buscarPorId(Number(motoristaId));
+    const entrega = await this.buscarPorId(id);
+    const motorista = await this.motoristasRepo.buscarPorId(Number(motoristaId));
     if (!motorista) {
       throw new NaoEncontradoError('motorista não encontrado');
     }
@@ -112,7 +111,8 @@ export class EntregasService {
     });
   }
 
-  buscarHistorico(id) {
-    return this.buscarPorId(id).historico;
+  async buscarHistorico(id) {
+    const entrega = await this.buscarPorId(id);
+    return entrega.historico;
   }
 }
