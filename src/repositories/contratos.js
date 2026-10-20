@@ -1,4 +1,12 @@
 /**
+ * Os métodos podem devolver o valor direto (repository em memória) ou uma Promise (Prisma).
+ * Os services sempre usam `await`, então funcionam com os dois.
+ *
+ * @template T
+ * @typedef {T | Promise<T>} Resultado
+ */
+
+/**
  * @typedef {Object} Evento
  * @property {string} data
  * @property {string} descricao
@@ -28,20 +36,20 @@
  * Contrato de persistência de entregas. Os services só conhecem estes métodos.
  *
  * @typedef {Object} IEntregasRepository
- * @property {(filtros?: {status?: string, motoristaId?: number}) => Entrega[]} listarTodos
- * @property {(id: number) => Entrega|null} buscarPorId
- * @property {(dados: Omit<Entrega, 'id'>) => Entrega} criar
- * @property {(id: number, dados: Partial<Entrega>) => Entrega} atualizar
+ * @property {(filtros?: {status?: string, motoristaId?: number}) => Resultado<Entrega[]>} listarTodos
+ * @property {(id: number) => Resultado<Entrega|null>} buscarPorId
+ * @property {(dados: Omit<Entrega, 'id'>) => Resultado<Entrega>} criar
+ * @property {(id: number, dados: Partial<Entrega>) => Resultado<Entrega>} atualizar
  */
 
 /**
  * Contrato de persistência de motoristas.
  *
  * @typedef {Object} IMotoristasRepository
- * @property {() => Motorista[]} listarTodos
- * @property {(id: number) => Motorista|null} buscarPorId
- * @property {(cpf: string) => Motorista|null} buscarPorCpf
- * @property {(dados: Omit<Motorista, 'id'>) => Motorista} criar
+ * @property {() => Resultado<Motorista[]>} listarTodos
+ * @property {(id: number) => Resultado<Motorista|null>} buscarPorId
+ * @property {(cpf: string) => Resultado<Motorista|null>} buscarPorCpf
+ * @property {(dados: Omit<Motorista, 'id'>) => Resultado<Motorista>} criar
  */
 
 export {};

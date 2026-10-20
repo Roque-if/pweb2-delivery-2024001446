@@ -31,3 +31,4 @@ export class EntregasRepository {
     return Object.assign(entrega, dados);
   }
 }
+// TODO: melhorar listarTodos
