@@ -115,6 +115,22 @@ curl "http://localhost:3000/api/motoristas/1/entregas?status=CRIADA"
 | GET | `/api/motoristas/:id` | 200 | 404 |
 | GET | `/api/motoristas/:id/entregas` (`?status=`) | 200 | 404 |
 
+## Persistência com Prisma + SQLite
+
+Os dados ficam num banco SQLite (arquivo `dev.db`), então sobrevivem a reinícios do servidor.
+O schema está em `prisma/schema.prisma` (modelos `Entrega`, `Motorista` e `Evento`, que guarda o
+histórico) e as migrations versionadas em `prisma/migrations/`. O `dev.db` e o `.env` ficam fora do git.
+
+```bash
+npm install
+cp .env.example .env          # no Windows: copy .env.example .env  (DATABASE_URL="file:./dev.db")
+npx prisma migrate dev        # cria o banco e aplica as migrations
+npm start
+```
+
+Em produção/CI use `npx prisma migrate deploy` no lugar do `migrate dev`. Para inspecionar os dados:
+`npx prisma studio`.
+
 ## Composição das dependências
 
 Todo `new` acontece num único ponto, `criarRotas()` em `src/routes/index.js`. Os services
@@ -122,9 +138,9 @@ recebem os repositories pelo construtor e só conhecem os contratos documentados
 `src/repositories/contratos.js` (`IEntregasRepository` e `IMotoristasRepository`).
 
 ```
-                      Database
-                     /        \
-        EntregasRepository   MotoristasRepository
+                  Prisma Client (src/config/database.js)
+                     /                       \
+   EntregasPrismaRepository        MotoristasPrismaRepository
              |        \         /        |
              |     EntregasService        |
              |           |                |
