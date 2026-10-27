@@ -1,141 +1,74 @@
-# Delivery Tracker — Exercício do Capítulo 4
+# Delivery Tracker
 
-> **Programação Web II — IFAL/Maceió.** Este é o **projeto do semestre** (avaliado). No Cap. 4 você
-> inicia a **Delivery Tracker API** com **arquitetura em camadas** e, depois, **Repository Pattern +
-> injeção de dependência**. A correção é **automática** (autograder de conformidade) + arquitetura.
+Projeto da disciplina **Programação Web II (IFAL/Maceió)**. Sistema para rastrear o ciclo de vida de
+entregas e motoristas, construído em camadas (controllers, services, repositories) com Node, Express,
+Prisma + SQLite e, agora, **interface web renderizada no servidor com EJS**.
 
-## Como usar este repositório
+![Tela de entregas](docs/tela-entregas.png)
 
-1. Clique em **"Use this template"** e crie **`pweb2-delivery-<matricula>`** (ex.: `pweb2-delivery-20231012345`).
-   Este é o repositório que você usará o **semestre inteiro** (evolui a cada capítulo).
-2. Clone, instale e rode:
-   ```bash
-   npm install
-   npm start                                        # http://localhost:3000
-   # em outro terminal — autograder:
-   npm run check                                    # = BASE_URL=http://localhost:3000 node autograder/check.mjs
-   ```
-3. A cada `git push`, o **GitHub Actions** roda o autograder e mostra a nota na aba **Actions**
-   (resumo do job). O `autograder/check.mjs` é **aberto** — leia para saber exatamente o que se espera.
-
-## O que implementar (em `src/`)
-
-```
-src/
-├── controllers/   # traduz HTTP ↔ service (sem regra de negócio)
-├── services/      # TODA a regra de negócio
-├── repositories/  # só acesso a dados
-├── database/      # persistência SIMULADA em memória (sem banco real, sem ORM)
-├── routes/        # composição das dependências (injeção) + monta em /api
-└── utils/
-```
-
-- **Regra de negócio só no Service.** Injeção de dependência no **composition root** (`src/routes`).
-- O `server.js` só configura o app (já traz o `GET /api/health` exigido — não remova).
-
-## Duas etapas (ver os enunciados completos)
-
-- **Atividade 05 — Entregas em camadas:** CRUD de `/api/entregas`, ciclo de status
-  (`CRIADA → EM_TRANSITO → ENTREGUE`/`CANCELADA`), histórico. Meta: checagens de **Entregas** verdes.
-- **Atividade 06 — Motoristas + Contratos + DI:** `/api/motoristas`, atribuição de motorista,
-  contratos de repository (JSDoc) e composição num ponto único. Meta: **122/122**.
-
-> O critério de **inversão de dependência** é verificado pelo professor **trocando o repository por
-> um Mock** que respeita o contrato — programe contra o contrato desde o início.
-
-## Contrato (resumo)
-
-- Base `/api` · JSON · erro `{ "erro": "..." }` · `GET /api/health` → `{ "status": "ok" }`.
-- Status: `201` criar · `400` entrada inválida · `404` não encontrado · `409` unicidade
-  (duplicata/CPF) · `422` regra de estado (transição/atribuição inválida).
-- Execução: `npm start`, respeita `process.env.PORT`, branch `main`.
-
-Faça **um commit por avanço** (Conventional Commits, ex.: `feat(entregas): valida origem ≠ destino`).
-Bom trabalho! 🚀
-
-## Exemplos de uso (curl)
-
-```bash
-# criar entrega
-curl -X POST http://localhost:3000/api/entregas \
-  -H "Content-Type: application/json" \
-  -d '{"descricao":"Pacote 1","origem":"Maceió","destino":"Arapiraca"}'
-
-# listar entregas
-curl http://localhost:3000/api/entregas
-
-# listar entregas filtrando por status
-curl "http://localhost:3000/api/entregas?status=CRIADA"
-
-# buscar uma entrega por id
-curl http://localhost:3000/api/entregas/1
-
-# avançar o status (CRIADA -> EM_TRANSITO -> ENTREGUE)
-curl -X PATCH http://localhost:3000/api/entregas/1/avancar
-
-# cancelar uma entrega
-curl -X PATCH http://localhost:3000/api/entregas/1/cancelar
-
-# ver o histórico de uma entrega
-curl http://localhost:3000/api/entregas/1/historico
-
-# atribuir um motorista a uma entrega (só entrega CRIADA + motorista ATIVO)
-curl -X PATCH http://localhost:3000/api/entregas/1/atribuir \
-  -H "Content-Type: application/json" \
-  -d '{"motoristaId":1}'
-
-# cadastrar motorista
-curl -X POST http://localhost:3000/api/motoristas \
-  -H "Content-Type: application/json" \
-  -d '{"nome":"João","cpf":"123.456.789-00","placaVeiculo":"ABC1D23"}'
-
-# listar motoristas / buscar um motorista
-curl http://localhost:3000/api/motoristas
-curl http://localhost:3000/api/motoristas/1
-
-# entregas de um motorista (com filtro opcional por status)
-curl http://localhost:3000/api/motoristas/1/entregas
-curl "http://localhost:3000/api/motoristas/1/entregas?status=CRIADA"
-```
-
-## Rotas da API
-
-| Método | Rota | Sucesso | Erros |
-|---|---|---|---|
-| GET | `/api/health` | 200 | - |
-| POST | `/api/entregas` | 201 | 400 · 409 |
-| GET | `/api/entregas` (`?status=`) | 200 | - |
-| GET | `/api/entregas/:id` | 200 | 404 |
-| PATCH | `/api/entregas/:id/avancar` | 200 | 404 · 422 |
-| PATCH | `/api/entregas/:id/cancelar` | 200 | 404 · 422 |
-| PATCH | `/api/entregas/:id/atribuir` | 200 | 400 · 404 · 422 |
-| GET | `/api/entregas/:id/historico` | 200 | 404 |
-| POST | `/api/motoristas` | 201 | 400 · 409 |
-| GET | `/api/motoristas` | 200 | - |
-| GET | `/api/motoristas/:id` | 200 | 404 |
-| GET | `/api/motoristas/:id/entregas` (`?status=`) | 200 | 404 |
-
-## Persistência com Prisma + SQLite
-
-Os dados ficam num banco SQLite (arquivo `dev.db`), então sobrevivem a reinícios do servidor.
-O schema está em `prisma/schema.prisma` (modelos `Entrega`, `Motorista` e `Evento`, que guarda o
-histórico) e as migrations versionadas em `prisma/migrations/`. O `dev.db` e o `.env` ficam fora do git.
+## Como rodar
 
 ```bash
 npm install
 cp .env.example .env          # no Windows: copy .env.example .env  (DATABASE_URL="file:./dev.db")
 npx prisma migrate dev        # cria o banco e aplica as migrations
-npm start
+npm run dev                   # ou npm start; abra http://localhost:3000 no navegador
 ```
 
-Em produção/CI use `npx prisma migrate deploy` no lugar do `migrate dev`. Para inspecionar os dados:
-`npx prisma studio`.
+- `GET /api/health` responde `{ "status": "ok" }` (só para checar se o servidor subiu).
+- A porta pode ser trocada com a variável `PORT`.
+- Em produção/CI use `npx prisma migrate deploy` no lugar do `migrate dev`.
+- Para inspecionar o banco: `npx prisma studio`.
 
-## Composição das dependências
+## Rotas da interface web
 
-Todo `new` acontece num único ponto, `criarRotas()` em `src/routes/index.js`. Os services
-recebem os repositories pelo construtor e só conhecem os contratos documentados em
-`src/repositories/contratos.js` (`IEntregasRepository` e `IMotoristasRepository`).
+| Método | Caminho | O que faz |
+|---|---|---|
+| GET | `/` | Redireciona para `/entregas` |
+| GET | `/entregas` | Lista as entregas (filtro opcional `?status=`) |
+| GET | `/entregas/nova` | Formulário de nova entrega |
+| POST | `/entregas` | Cria a entrega e redireciona (PRG). Inválido: reexibe o formulário (400) |
+| GET | `/entregas/:id` | Detalhe com status e histórico (404 em página HTML se não existir) |
+| PATCH | `/entregas/:id/avancar` | Avança o status e redireciona |
+| PATCH | `/entregas/:id/cancelar` | Cancela e redireciona |
+| PATCH | `/entregas/:id/atribuir` | Atribui o `motoristaId` escolhido no `<select>` e redireciona |
+| GET | `/motoristas` | Lista os motoristas |
+| GET | `/motoristas/novo` | Formulário de novo motorista |
+| POST | `/motoristas` | Cadastra e redireciona. CPF duplicado: reexibe o formulário com o erro |
+
+Os formulários HTML só enviam GET e POST. As ações de estado usam **method-override**: o botão faz
+`POST /entregas/:id/avancar?_method=PATCH` e o servidor trata como `PATCH`.
+
+### Como a interface funciona
+
+- **EJS com layout:** `src/views/layouts/base.ejs` envolve todas as telas, com os partials `navbar`,
+  `flash` e `erros-form`.
+- **Post-Redirect-Get (PRG):** toda escrita bem-sucedida responde com redirect, nunca com HTML direto.
+- **Mensagens flash** (`express-session` + `connect-flash`): aparecem na página seguinte à ação.
+- **Validação** (`express-validator`): formulário inválido volta com as mensagens e com os dados
+  digitados, com status 4xx.
+- **Erros:** entrega inexistente ou rota desconhecida renderizam uma página 404 em HTML.
+- **Regras de negócio** (origem diferente de destino, duplicidade, transições de status, atribuição só
+  em entrega `CRIADA` com motorista `ATIVO`) continuam nos services e aparecem como mensagem na tela.
+
+## Arquitetura
+
+```
+src/
+├── controllers/   # traduz HTTP em chamada de service e renderiza view / redireciona
+├── services/      # TODA a regra de negócio
+├── repositories/  # só acesso a dados (contratos em contratos.js; implementação com Prisma)
+├── config/        # singleton do Prisma Client
+├── middlewares/   # validação (express-validator), flash e tratamento de erros em HTML
+├── routes/        # composition root: único lugar com `new` de repository/service/controller
+├── views/         # layout, partials e telas EJS
+├── public/        # CSS
+└── utils/         # classes de erro de negócio
+```
+
+Os services dependem só dos contratos `IEntregasRepository` e `IMotoristasRepository`
+(`src/repositories/contratos.js`), então o repository pode ser trocado (ou substituído por um Mock)
+sem mexer nos services.
 
 ```
                   Prisma Client (src/config/database.js)
@@ -145,14 +78,25 @@ recebem os repositories pelo construtor e só conhecem os contratos documentados
              |     EntregasService        |
              |           |                |
              |   EntregasController       |
+             |    (recebe também          |
+             |   MotoristasService)       |
              |                            |
              +----- MotoristasService ----+
                            |
                   MotoristasController
                            |
-                    criarRotas() -> /api
+              criarRotas() -> páginas EJS
 ```
 
-`EntregasService` recebe `(entregasRepo, motoristasRepo)` e `MotoristasService` recebe
-`(motoristasRepo, entregasRepo)`. A regra de motorista INATIVO não pode ser atribuído fica no
-`EntregasService`.
+## Persistência com Prisma + SQLite
+
+Os dados ficam num banco SQLite (`dev.db`), então sobrevivem a reinícios do servidor. O schema está em
+`prisma/schema.prisma` (modelos `Entrega`, `Motorista` e `Evento`, que guarda o histórico) e as
+migrations versionadas em `prisma/migrations/`. O `dev.db` e o `.env` ficam fora do git.
+
+## Histórico do projeto
+
+- **Atividade 05:** entregas em camadas (controller, service, repository) em memória.
+- **Atividade 06:** motoristas, contratos de repository em JSDoc e injeção de dependência.
+- **Atividade 07:** persistência com Prisma + SQLite.
+- **Atividade 08:** interface web com SSR (EJS), PRG, flash e validação de formulários.
